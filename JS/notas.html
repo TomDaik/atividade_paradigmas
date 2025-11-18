@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Escolar Funcional (Estrutura Separada)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f4f7f9; }
+        input:focus, button:focus { outline: none; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5); }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+    <div id="app" class="max-w-4xl mx-auto bg-white p-6 md:p-10 rounded-xl shadow-2xl">
+        <h1 class="text-3xl font-extrabold text-blue-800 mb-6 border-b-2 pb-2">
+            Simulador Escolar Funcional
+        </h1>
+        <p class="text-gray-600 mb-8">
+            Insira as 12 notas (4 bimestres com 3 notas cada) abaixo.
+        </p>
+        
+        <div id="notes-input-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        </div>
+
+        <button id="calculate-btn"
+                class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition duration-300 shadow-md">
+            Calcular Resultados Funcionais
+        </button>
+
+        <div id="results" class="mt-10 p-6 bg-gray-50 rounded-lg border border-gray-200 hidden">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4">Análise Estatística</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="p-4 bg-white rounded-lg shadow">
+                    <p class="text-sm font-medium text-gray-500">Média Geral</p>
+                    <p id="mean-result" class="text-3xl font-extrabold text-green-600"></p>
+                </div>
+                <div class="p-4 bg-white rounded-lg shadow">
+                    <p class="text-sm font-medium text-gray-500">Mediana</p>
+                    <p id="median-result" class="text-3xl font-extrabold text-purple-600"></p>
+                </div>
+                <div class="p-4 bg-white rounded-lg shadow">
+                    <p class="text-sm font-medium text-gray-500">Desvio Padrão</p>
+                    <p id="stddev-result" class="text-3xl font-extrabold text-orange-600"></p>
+                </div>
+                <div class="p-4 rounded-lg shadow status-bg">
+                    <p class="text-sm font-medium text-white">Status Final</p>
+                    <p id="status-result" class="text-3xl font-extrabold text-white"></p>
+                </div>
+            </div>
+
+            <div class="mt-6 border-t pt-4">
+                <p class="font-semibold text-gray-700 mb-2">Detalhes das Notas (Ordenadas)</p>
+                <div id="sorted-notes-display" class="flex flex-wrap gap-2 text-sm text-gray-600">
+                </div>
+            </div>
+        </div>
+
+        <div id="message-box" class="mt-4 p-3 rounded-lg text-sm bg-red-100 text-red-700 hidden"></div>
+
+    </div>
+
+    <script>
+        const NUM_BIMESTRES = 4;
+        const NOTAS_POR_BIMESTRE = 3;
+        const TOTAL_NOTAS = NUM_BIMESTRES * NOTAS_POR_BIMESTRE;
+        const NOTA_APROVACAO = 7.0;
+        const NOTA_RECUPERACAO = 5.0;
+
+        const sum = (acc, val) => acc + val;
+
+        const calculateMean = (notes) => {
+            const totalSum = notes.reduce(sum, 0);
+            return totalSum / notes.length;
+        };
+
+        const calculateMedian = (notes) => {
+            const sorted = [...notes].sort((a, b) => a - b);
+            const n = sorted.length;
+            const isOdd = n % 2 === 1;
+
+            if (isOdd) {
+                return sorted[Math.floor(n / 2)];
+            } else {
+                const mid1 = sorted[n / 2 - 1];
+                const mid2 = sorted[n / 2];
+                return (mid1 + mid2) / 2;
+            }
+        };
+
+        const calculateStdDev = (notes, mean) => {
+            const squaredDifferences = notes.map(note => Math.pow(note - mean, 2));
+
+            const sumSquaredDiff = squaredDifferences.reduce(sum, 0);
+
+            const variance = sumSquaredDiff / (notes.length - 1);
+            
+            return Math.sqrt(variance);
+        };
+
+        const determineStatus = (mean) => {
+            if (mean >= NOTA_APROVACAO) return 'Aprovado';
+            if (mean >= NOTA_RECUPERACAO) return 'Recuperação';
+            return 'Reprovado';
+        };
+
+        const runCalculations = (notes) => {
+            const mean = calculateMean(notes);
+            const median = calculateMedian(notes);
+            const stdDev = calculateStdDev(notes, mean);
+            const status = determineStatus(mean);
+
+            const sortedNotes = [...notes].sort((a, b) => a - b);
+
+            return { mean, median, stdDev, status, sortedNotes };
+        };
+
+        function generateInputFields() {
+            const container = document.getElementById('notes-input-container');
+            let htmlContent = '';
+
+            for (let b = 1; b <= NUM_BIMESTRES; b++) {
+                // Cria um card para cada bimestre
+                htmlContent += `<div class="p-4 border-2 border-blue-100 rounded-xl bg-blue-50">
+                                    <h3 class="text-lg font-semibold text-blue-700 mb-3">Bimestre ${b}</h3>`;
+                for (let n = 1; n <= NOTAS_POR_BIMESTRE; n++) {
+                    const index = (b - 1) * NOTAS_POR_BIMESTRE + (n - 1);
+                    htmlContent += `<div class="mb-2">
+                                        <label for="note-${index}" class="block text-xs font-medium text-gray-600">Nota ${n}:</label>
+                                        <input type="number" id="note-${index}" min="0" max="10" step="0.1" value="7.0"
+                                            class="w-full mt-1 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-gray-800">
+                                    </div>`;
+                }
+                htmlContent += `</div>`;
+            }
+            container.innerHTML = htmlContent;
+        }
+
+        function getNotesFromInputs() {
+            const notes = [];
+            const messageBox = document.getElementById('message-box');
+            messageBox.classList.add('hidden');
+
+            for (let i = 0; i < TOTAL_NOTAS; i++) {
+                const input = document.getElementById(`note-${i}`);
+                const value = parseFloat(input.value);
+
+                if (isNaN(value) || value < 0 || value > 10) {
+                    messageBox.textContent = `Erro: A nota na posição ${i + 1} ("${input.value}") deve ser um número entre 0.0 e 10.0.`;
+                    messageBox.classList.remove('hidden');
+                    return null;
+                }
+                notes.push(value);
+            }
+            return notes;
+        }
+
+        function updateUI(results) {
+            document.getElementById('mean-result').textContent = results.mean.toFixed(2);
+            document.getElementById('median-result').textContent = results.median.toFixed(2);
+            document.getElementById('stddev-result').textContent = results.stdDev.toFixed(2);
+            document.getElementById('status-result').textContent = results.status;
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.classList.remove('hidden');
+
+            const statusBg = resultsDiv.querySelector('.status-bg');
+            statusBg.className = 'p-4 rounded-lg shadow status-bg';
+
+            if (results.status === 'Aprovado') {
+                statusBg.classList.add('bg-green-500');
+            } else if (results.status === 'Recuperação') {
+                statusBg.classList.add('bg-yellow-500');
+            } else {
+                statusBg.classList.add('bg-red-500');
+            }
+
+            const sortedDisplay = document.getElementById('sorted-notes-display');
+            sortedDisplay.innerHTML = results.sortedNotes.map(n => 
+                `<span class="px-3 py-1 bg-gray-200 rounded-full text-gray-700">${n.toFixed(1)}</span>`
+            ).join('');
+        }
+
+        function handleCalculate() {
+            const notes = getNotesFromInputs();
+            
+            if (notes) {
+                const results = runCalculations(notes);
+                
+                updateUI(results);
+            }
+        }
+
+        window.onload = () => {
+            generateInputFields();
+            document.getElementById('calculate-btn').addEventListener('click', handleCalculate);
+        };
+    </script>
+</body>
+</html>
